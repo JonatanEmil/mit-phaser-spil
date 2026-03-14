@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <title>Tilemap Viewer</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;600&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0D1117;
+      --bg2:      #161B22;
+      --bg3:      #1F2937;
+      --border:   #30363D;
+      --green:    #00E5A0;
+      --blue:     #58A6FF;
+      --muted:    #8B949E;
+      --white:    #F0F6FC;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--white);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 4rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    header h1 {
+      font-family: 'Space Mono', monospace;
+      font-size: 1.8rem;
+      color: var(--green);
+      letter-spacing: 2px;
+      margin-bottom: 0.4rem;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .controls {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem 2rem;
+      width: 100%;
+      max-width: 700px;
+      margin-bottom: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+
+    .control-row {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      flex: 1;
+      min-width: 120px;
+    }
+
+    label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    input[type="number"] {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--white);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.95rem;
+      padding: 0.5rem 0.75rem;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="number"]:focus {
+      border-color: var(--green);
+    }
+
+    .upload-area {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+
+    .upload-area:hover {
+      border-color: var(--green);
+      background: rgba(0, 229, 160, 0.04);
+    }
+
+    .upload-area input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .upload-area .upload-icon { font-size: 1.8rem; margin-bottom: 0.4rem; }
+    .upload-area .upload-text { color: var(--muted); font-size: 0.85rem; }
+    .upload-area .upload-name { color: var(--green); font-family: 'Space Mono', monospace; font-size: 0.8rem; margin-top: 0.3rem; }
+
+    .btn {
+      background: var(--green);
+      color: #0D1117;
+      border: none;
+      border-radius: 6px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 0.6rem 1.4rem;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: opacity 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .btn:hover { opacity: 0.85; }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* Info bar */
+    .info-bar {
+      display: none;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem 1.2rem;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--muted);
+      width: 100%;
+      max-width: 700px;
+      margin-bottom: 1rem;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .info-bar span { color: var(--green); }
+
+    /* Tooltip */
+    .tooltip {
+      display: none;
+      position: fixed;
+      background: var(--bg2);
+      border: 1px solid var(--green);
+      border-radius: 6px;
+      padding: 0.4rem 0.8rem;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--green);
+      pointer-events: none;
+      z-index: 1000;
+      transform: translate(-50%, -130%);
+      white-space: nowrap;
+    }
+
+    /* Canvas wrapper */
+    .canvas-wrapper {
+      position: relative;
+      display: inline-block;
+      cursor: crosshair;
+    }
+
+    canvas#tileCanvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    /* Overlay canvas for numbers */
+    canvas#overlayCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      pointer-events: none;
+    }
+
+    .empty-state {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 3rem;
+      text-align: center;
+    }
+
+    .empty-state .big { font-size: 3rem; margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🦄 JAKOBS TILEMAP VIEWER 🦄</h1>
+  <p>Upload et tileset, tryk vis og se frame-numrene direkte på tiles</p>
+</header>
+
+<div class="controls">
+  <div class="upload-area" id="uploadArea">
+    <input type="file" id="fileInput" accept="image/png,image/jpg,image/jpeg,image/gif">
+    <div class="upload-icon">🗂️</div>
+    <div class="upload-text">Klik eller træk dit tileset hertil (.png)</div>
+    <div class="upload-name" id="fileName"></div>
+  </div>
+
+  <div class="control-row">
+    <div class="control-group">
+      <label>Tile bredde (px)</label>
+      <input type="number" id="tileW" value="16" min="1" max="256">
+    </div>
+    <div class="control-group">
+      <label>Tile højde (px)</label>
+      <input type="number" id="tileH" value="16" min="1" max="256">
+    </div>
+    <div class="control-group">
+      <label>Spacing (px)</label>
+      <input type="number" id="spacing" value="1" min="0" max="32">
+    </div>
+    <div class="control-group">
+      <label>Margin (px)</label>
+      <input type="number" id="margin" value="0" min="0" max="32">
+    </div>
+    <div class="control-group">
+      <label>Zoom</label>
+      <input type="number" id="zoom" value="3" min="1" max="8">
+    </div>
+    <button class="btn" id="renderBtn" disabled>VIS</button>
+  </div>
+</div>
+
+<div class="info-bar" id="infoBar">
+  Tileset: <span id="infoSize">–</span> &nbsp;|&nbsp;
+  Kolonner: <span id="infoCols">–</span> &nbsp;|&nbsp;
+  Rækker: <span id="infoRows">–</span> &nbsp;|&nbsp;
+  Frames i alt: <span id="infoTotal">–</span>
+</div>
+
+<div class="canvas-wrapper" id="canvasWrapper">
+  <canvas id="tileCanvas"></canvas>
+  <canvas id="overlayCanvas"></canvas>
+</div>
+
+<div class="empty-state" id="emptyState">
+  <div class="big"></div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+  const fileInput   = document.getElementById('fileInput');
+  const fileName    = document.getElementById('fileName');
+  const renderBtn   = document.getElementById('renderBtn');
+  const tileCanvas  = document.getElementById('tileCanvas');
+  const overlayCanvas = document.getElementById('overlayCanvas');
+  const wrapper     = document.getElementById('canvasWrapper');
+  const emptyState  = document.getElementById('emptyState');
+  const infoBar     = document.getElementById('infoBar');
+  const tooltip     = document.getElementById('tooltip');
+
+  let loadedImage = null;
+  let lastCols = 0, lastRows = 0;
+  let lastTileW = 16, lastTileH = 16;
+  let lastSpacing = 1, lastMargin = 0, lastZoom = 3;
+
+  // ── File input ──────────────────────────────────────────────
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    fileName.textContent = file.name;
+    renderBtn.disabled = false;
+
+    const img = new Image();
+    img.onload = () => {
+      loadedImage = img;
+      render();
+    };
+    img.src = URL.createObjectURL(file);
+  });
+
+  // Drag & drop
+  const uploadArea = document.getElementById('uploadArea');
+  uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.style.borderColor = 'var(--green)'; });
+  uploadArea.addEventListener('dragleave', () => { uploadArea.style.borderColor = 'var(--border)'; });
+  uploadArea.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadArea.style.borderColor = 'var(--border)';
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    fileName.textContent = file.name;
+    renderBtn.disabled = false;
+    const img = new Image();
+    img.onload = () => { loadedImage = img; render(); };
+    img.src = URL.createObjectURL(file);
+  });
+
+  renderBtn.addEventListener('click', render);
+
+  // Re-render on Enter in inputs
+  document.querySelectorAll('input[type="number"]').forEach(input => {
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') render(); });
+  });
+
+  // ── Render ──────────────────────────────────────────────────
+  function render() {
+    if (!loadedImage) return;
+
+    const tileW   = parseInt(document.getElementById('tileW').value)   || 16;
+    const tileH   = parseInt(document.getElementById('tileH').value)   || 16;
+    const spacing = parseInt(document.getElementById('spacing').value) || 0;
+    const margin  = parseInt(document.getElementById('margin').value)  || 0;
+    const zoom    = parseInt(document.getElementById('zoom').value)    || 3;
+
+    const imgW = loadedImage.width;
+    const imgH = loadedImage.height;
+
+    const cols = Math.floor((imgW - margin * 2 + spacing) / (tileW + spacing));
+    const rows = Math.floor((imgH - margin * 2 + spacing) / (tileH + spacing));
+    const total = cols * rows;
+
+    lastCols = cols; lastRows = rows;
+    lastTileW = tileW; lastTileH = tileH;
+    lastSpacing = spacing; lastMargin = margin; lastZoom = zoom;
+
+    // Update info bar
+    document.getElementById('infoSize').textContent  = `${imgW}×${imgH}px`;
+    document.getElementById('infoCols').textContent  = cols;
+    document.getElementById('infoRows').textContent  = rows;
+    document.getElementById('infoTotal').textContent = total;
+    infoBar.style.display = 'flex';
+
+    const canvasW = cols * (tileW + spacing) * zoom - spacing * zoom + margin * 2 * zoom;
+    const canvasH = rows * (tileH + spacing) * zoom - spacing * zoom + margin * 2 * zoom;
+
+    tileCanvas.width  = canvasW;
+    tileCanvas.height = canvasH;
+    overlayCanvas.width  = canvasW;
+    overlayCanvas.height = canvasH;
+
+    const ctx = tileCanvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+
+    // Draw background
+    ctx.fillStyle = '#0D1117';
+    ctx.fillRect(0, 0, canvasW, canvasH);
+
+    // Draw each tile
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const srcX = margin + col * (tileW + spacing);
+        const srcY = margin + row * (tileH + spacing);
+        const dstX = margin * zoom + col * (tileW + spacing) * zoom;
+        const dstY = margin * zoom + row * (tileH + spacing) * zoom;
+
+        ctx.drawImage(loadedImage, srcX, srcY, tileW, tileH, dstX, dstY, tileW * zoom, tileH * zoom);
+
+        // Grid-linje rundt om tile
+        ctx.strokeStyle = 'rgba(48, 54, 61, 0.8)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(dstX + 0.5, dstY + 0.5, tileW * zoom - 1, tileH * zoom - 1);
+      }
+    }
+
+    // Draw frame-numre på overlay canvas
+    const octx = overlayCanvas.getContext('2d');
+    octx.clearRect(0, 0, canvasW, canvasH);
+
+    const fontSize = Math.max(8, Math.min(zoom * 3.5, 14));
+    octx.font = `bold ${fontSize}px "Space Mono", monospace`;
+    octx.textAlign = 'left';
+    octx.textBaseline = 'bottom';
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const frame = row * cols + col;
+        const dstX  = margin * zoom + col * (tileW + spacing) * zoom;
+        const dstY  = margin * zoom + row * (tileH + spacing) * zoom;
+        const numX  = dstX + 2;
+        const numY  = dstY + tileH * zoom - 2;
+
+        // Skygge
+        octx.fillStyle = 'rgba(0,0,0,0.85)';
+        octx.fillText(String(frame), numX + 1, numY + 1);
+
+        // Tal
+        octx.fillStyle = '#F0E040';
+        octx.fillText(String(frame), numX, numY);
+      }
+    }
+
+    emptyState.style.display = 'none';
+    wrapper.style.display = 'inline-block';
+  }
+
+  // ── Hover tooltip ────────────────────────────────────────────
+  overlayCanvas.addEventListener('mousemove', (e) => {
+    if (!loadedImage || lastCols === 0) return;
+
+    const rect   = overlayCanvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const tileStepX = (lastTileW + lastSpacing) * lastZoom;
+    const tileStepY = (lastTileH + lastSpacing) * lastZoom;
+    const offsetX   = lastMargin * lastZoom;
+    const offsetY   = lastMargin * lastZoom;
+
+    const col = Math.floor((mouseX - offsetX) / tileStepX);
+    const row = Math.floor((mouseY - offsetY) / tileStepY);
+
+    if (col < 0 || col >= lastCols || row < 0 || row >= lastRows) {
+      tooltip.style.display = 'none';
+      return;
+    }
+
+    const frame = row * lastCols + col;
+    tooltip.textContent = `frame: ${frame}  |  col: ${col}  |  row: ${row}`;
+    tooltip.style.display = 'block';
+    tooltip.style.left = e.clientX + 'px';
+    tooltip.style.top  = e.clientY + 'px';
+  });
+
+  overlayCanvas.addEventListener('mouseleave', () => {
+    tooltip.style.display = 'none';
+  });
+
+  // Klik for at kopiere frame-nummer
+  overlayCanvas.addEventListener('click', (e) => {
+    if (!loadedImage || lastCols === 0) return;
+
+    const rect   = overlayCanvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const tileStepX = (lastTileW + lastSpacing) * lastZoom;
+    const tileStepY = (lastTileH + lastSpacing) * lastZoom;
+    const offsetX   = lastMargin * lastZoom;
+    const offsetY   = lastMargin * lastZoom;
+
+    const col = Math.floor((mouseX - offsetX) / tileStepX);
+    const row = Math.floor((mouseY - offsetY) / tileStepY);
+
+    if (col < 0 || col >= lastCols || row < 0 || row >= lastRows) return;
+
+    const frame = row * lastCols + col;
+    navigator.clipboard.writeText(String(frame)).then(() => {
+      tooltip.textContent = `✓ kopieret: ${frame}`;
+      setTimeout(() => { tooltip.style.display = 'none'; }, 1200);
+    });
+  });
+</script>
+</body>
+</html>
