@@ -4,6 +4,9 @@ export class GameScene extends Phaser.Scene {
     private walls!: Phaser.Physics.Arcade.StaticGroup;
     private player!: Phaser.Physics.Arcade.Sprite;  // ← tilføj denne
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;  // ← og denne
+    private items!: Phaser.Physics.Arcade.StaticGroup;  // ← tilføj
+    private score: number = 0;                          // ← tilføj
+    private scoreText!: Phaser.GameObjects.Text;        // ← tilføj
 
     constructor() {
         super({ key: "GameScene" });
@@ -117,6 +120,86 @@ export class GameScene extends Phaser.Scene {
 
 // ─── Input ───────────────────────────────────────────────────
         this.cursors = this.input.keyboard!.createCursorKeys();
+
+        // ─── Items ───────────────────────────────────────────────────
+        const ITEM_FRAME = 114; // ← ret til dit frame-nummer
+
+        this.items = this.physics.add.staticGroup();
+
+// Placer items på specifikke tile-koordinater
+// Format: [kolonne, række] — tæl fra 0 i dit map-array
+        const itemPositions = [
+            [7, 5],
+            [22, 11],
+            [10, 8],
+            [20, 5],
+            [15, 7],
+        ];
+
+        itemPositions.forEach(([col, row]) => {
+            const x = col * TILE * SCALE + (TILE * SCALE) / 2;
+            const y = row * TILE * SCALE + (TILE * SCALE) / 2;
+            // Når du opretter items:
+            const item = this.items.create(x, y, "tilemap", ITEM_FRAME);
+            item.setScale(SCALE);
+            item.refreshBody();
+            item.setData("points", 10); // ← gem point-værdien
+        });
+        // ─── Overlap: spiller samler item op ─────────────────────────
+        this.physics.add.overlap(
+            this.player,
+            this.items,
+            (_player, item) => {
+                // Fjern itemet fra verden
+                (item as Phaser.Physics.Arcade.Sprite).destroy();
+
+                // Øg score
+                // I overlap-funktionen:
+                const points = (item as Phaser.Physics.Arcade.Sprite).getData("points");
+                this.score += points;
+                // I overlap-funktionen:
+                this.scoreText.setText(
+                    "Score: " + this.score + "  |  Items tilbage: " + this.items.countActive()
+                );
+
+                // Tjek om alle items er samlet op - Win condition
+                if (this.items.countActive() === 0) {
+                    this.add.text(
+                        this.cameras.main.centerX,
+                        this.cameras.main.centerY,
+                        "Du vandt!",
+                        { fontSize: "32px", color: "#00E5A0" }
+                    ).setOrigin(0.5).setScrollFactor(0);
+                }
+            }
+        );
+        // I create() — efter items er placeret:
+        this.scoreText.setText(
+            "Score: 0  |  Items tilbage: " + this.items.countActive()
+        );
+
+        // ─── Score-tekst ─────────────────────────────────────────────
+// setScrollFactor(0) fastgør teksten til skærmen — ikke verden
+        this.scoreText = this.add.text(16, 16, "Score: 0", {
+            fontSize: "18px",
+            color: "#ffffff",
+            backgroundColor: "#000000",
+            padding: { x: 8, y: 4 }
+        }).setScrollFactor(0);
+
+
+// laver player walk animation
+        this.time.addEvent({
+            delay: 120, // millisekunder mellem hvert skift
+            loop: true,
+            callback: () => {
+                if (this.player.body!.velocity.x !== 0 || this.player.body!.velocity.y !== 0) {
+                    this.player.angle = this.player.angle === -3 ? 3 : -3;
+                } else {
+                    this.player.angle = 0; // nulstil når spilleren står stille
+                }
+            }
+        });
     }
 
     update(): void {
@@ -126,10 +209,11 @@ export class GameScene extends Phaser.Scene {
         this.player.setVelocity(0);
 
         // Bevæg spilleren efter hvilke taster der holdes nede
-        if (this.cursors.left.isDown)  this.player.setVelocityX(-speed);
-        if (this.cursors.right.isDown) this.player.setVelocityX(speed);
+        if (this.cursors.left.isDown)  this.player.setVelocityX(-speed) && this.player.setFlipX(true);
+        if (this.cursors.right.isDown) this.player.setVelocityX(speed) && this.player.setFlipX(false);
         if (this.cursors.up.isDown)    this.player.setVelocityY(-speed);
         if (this.cursors.down.isDown)  this.player.setVelocityY(speed);
+
         // Normaliser hastigheden ved diagonal bevægelse
         const vx = (this.cursors.left.isDown ? -1 : 0) + (this.cursors.right.isDown ? 1 : 0);
         const vy = (this.cursors.up.isDown   ? -1 : 0) + (this.cursors.down.isDown  ? 1 : 0);
