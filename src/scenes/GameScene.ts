@@ -162,6 +162,11 @@ export class GameScene extends Phaser.Scene {
                     "Score: " + this.score + "  |  Items tilbage: " + this.items.countActive()
                 );
 
+                // I create() — efter items er placeret:
+                this.scoreText.setText(
+                    "Score: 0  |  Items tilbage: " + this.items.countActive()
+                );
+
                 // Tjek om alle items er samlet op - Win condition
                 if (this.items.countActive() === 0) {
                     this.add.text(
@@ -172,10 +177,6 @@ export class GameScene extends Phaser.Scene {
                     ).setOrigin(0.5).setScrollFactor(0);
                 }
             }
-        );
-        // I create() — efter items er placeret:
-        this.scoreText.setText(
-            "Score: 0  |  Items tilbage: " + this.items.countActive()
         );
 
         // ─── Score-tekst ─────────────────────────────────────────────
