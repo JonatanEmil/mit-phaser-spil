@@ -1,41 +1,35 @@
-import Phaser from "phaser";
-
 export class GameOverScene extends Phaser.Scene {
+    private finalScore: number = 0;
+
     constructor() {
         super({ key: "GameOverScene" });
     }
 
     init(data: { score: number }): void {
-        const { width, height } = this.scale;
+        // Modtag score fra GameScene
+        // ?? 0 sikrer at vi får 0 hvis data er undefined
+        this.finalScore = data.score ?? 0;
+    }
 
-        this.add
-            .text(width / 2, height / 2 - 60, "GAME OVER", {
-                fontSize: "48px",
-                color: "#ff4444",
-            })
-            .setOrigin(0.5);
+    create(): void {
+        const cx = this.cameras.main.centerX;
+        const cy = this.cameras.main.centerY;
 
-        this.add
-            .text(width / 2, height / 2, `Score: ${data.score}`, {
-                fontSize: "28px",
-                color: "#ffffff",
-            })
-            .setOrigin(0.5);
+        this.add.text(cx, cy - 80, "GAME OVER", {
+            fontSize: "48px",
+            color: "#F0883E",
+            fontStyle: "bold"
+        }).setOrigin(0.5);
 
-        const retryText = this.add
-            .text(width / 2, height / 2 + 60, "Tryk ENTER for at prøve igen", {
-                fontSize: "20px",
-                color: "#00ff88",
-            })
-            .setOrigin(0.5);
+        this.add.text(cx, cy, `Score: ${this.finalScore}`, {
+            fontSize: "28px",
+            color: "#00E5A0"
+        }).setOrigin(0.5);
 
-        this.tweens.add({
-            targets: retryText,
-            alpha: 0,
-            duration: 800,
-            yoyo: true,
-            repeat: -1,
-        });
+        this.add.text(cx, cy + 80, "Tryk ENTER for at prøve igen", {
+            fontSize: "16px",
+            color: "#8B949E"
+        }).setOrigin(0.5);
 
         this.input.keyboard!.once("keydown-ENTER", () => {
             this.scene.start("GameScene");

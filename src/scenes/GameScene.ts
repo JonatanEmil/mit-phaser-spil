@@ -3,16 +3,40 @@ import Phaser from "phaser";
 export class GameScene extends Phaser.Scene {
     private walls!: Phaser.Physics.Arcade.StaticGroup;
     private player!: Phaser.Physics.Arcade.Sprite;  // ← tilføj denne
+    private skeleton!: Phaser.Physics.Arcade.Sprite;
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;  // ← og denne
     private items!: Phaser.Physics.Arcade.StaticGroup;  // ← tilføj
     private score: number = 0;                          // ← tilføj
     private scoreText!: Phaser.GameObjects.Text;        // ← tilføj
+    private patrolLeft  = 244;                            // ← tilføj
+    private patrolRight = 524;                           // ← tilføj
+    private patrolSpeed = 80;                            // ← tilføj
+    private isInvincible: boolean = false;               // ← tilføj
+    private SKELETON_FRAME = 143;   // ← ret til dit frame-nummer
+    private lives: number = 3;                          // ← tilføj
+    private livesText!: Phaser.GameObjects.Text;        // ← tilføj
+
+
 
     constructor() {
         super({ key: "GameScene" });
     }
 
+    private spawnEnemy = (x: number, y: number, speed: number) => {
+        const e = this.physics.add.sprite(x, y, "skeleton", this.SKELETON_FRAME);
+        e.setScale(0.6);
+        e.setVelocityX(speed);
+        this.physics.add.overlap(this.player, e, this.bonkEnemy, undefined, this);
+        return e;
+    };
+
+
     create(): void {
+        // Nulstil variabler ved scene-start
+        this.isInvincible = false;
+        this.lives = 3;
+        this.score = 0;
+
         // ─── Kortets layout ──────────────────────────────────────────
         // Bogstaver bestemmer hvilken tile der tegnes hvor:
         // R = øvre venstre hjørne    W = øverste væg    S = øvre højre hjørne
@@ -96,6 +120,42 @@ export class GameScene extends Phaser.Scene {
                 }
             });
         });
+
+        // ─── Animationer ─────────────────────────────────────────────
+        this.anims.create({
+            key: "walk-down",
+            frames: this.anims.generateFrameNumbers("skeleton", { start: 130, end: 138 }), // ← ret
+            frameRate: 8,
+            repeat: -1   // loop
+        });
+
+        this.anims.create({
+            key: "walk-left",
+            frames: this.anims.generateFrameNumbers("skeleton", { start: 117, end: 125 }), // ← ret
+            frameRate: 8,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: "walk-right",
+            frames: this.anims.generateFrameNumbers("skeleton", { start: 143, end: 151 }), // ← ret
+            frameRate: 8,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: "walk-up",
+            frames: this.anims.generateFrameNumbers("skeleton", { start: 104, end: 112 }), // ← ret
+            frameRate: 8,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: "idle",
+            frames: [{ key: "skeleton", frame: 143 }],   // ← ret til din idle-frame
+            frameRate: 1
+        });
+
         // ─── Spawn spiller efter kortet er tegnet ────────────────────
 // Vigtigt: spawnes sidst så spilleren tegnes øverst
         const PLAYER_FRAME = 96;   // ← ret til dit frame-nummer
@@ -112,6 +172,35 @@ export class GameScene extends Phaser.Scene {
 // Forhindrer spilleren i at gå through vægge
         this.physics.add.collider(this.player, this.walls);
 
+        // Vigtigt: spawnes sidst så spilleren tegnes øverst
+        const SKELETON_START_X = 12; // ← hvilken kolonne (tæl fra 0)
+        const SKELETON_START_Y = 6; // ← hvilken række (tæl fra 0)
+
+        const skelex = SKELETON_START_X * TILE * SCALE + (TILE * SCALE) / 2;
+        const skely = SKELETON_START_Y * TILE * SCALE + (TILE * SCALE) / 2;
+
+        this.skeleton = this.spawnEnemy(skelex, skely, 80);
+        this.skeleton = this.spawnEnemy(skelex, skely + 2, 80);
+
+        this.skeleton.setScale(0.6 );
+        // Start patruljering til venstre
+        this.skeleton.setVelocityX(-this.patrolSpeed);
+        this.skeleton.anims.play("walk-left", true); // ← tilføj denne
+
+        this.skeleton.setCollideWorldBounds(true);
+        // ─── Kollision ───────────────────────────────────────────────
+// Forhindrer spilleren i at gå through vægge
+        this.physics.add.collider(this.skeleton, this.walls);
+        // ─── Overlap: spiller rører fjende ───────────────────────────
+        this.physics.add.overlap(
+            this.player,
+            this.skeleton,
+            this.bonkEnemy,
+            undefined,
+            this
+        );
+
+
 // ─── Kamera ──────────────────────────────────────────────────
 // Kameraet følger spilleren
         this.cameras.main
@@ -125,6 +214,8 @@ export class GameScene extends Phaser.Scene {
         const ITEM_FRAME = 114; // ← ret til dit frame-nummer
 
         this.items = this.physics.add.staticGroup();
+
+        
 
 // Placer items på specifikke tile-koordinater
 // Format: [kolonne, række] — tæl fra 0 i dit map-array
@@ -179,7 +270,7 @@ export class GameScene extends Phaser.Scene {
             }
         );
 
-        // ─── Score-tekst ─────────────────────────────────────────────
+// ─── UI: score og liv ────────────────────────────────────────
 // setScrollFactor(0) fastgør teksten til skærmen — ikke verden
         this.scoreText = this.add.text(16, 16, "Score: 0", {
             fontSize: "18px",
@@ -187,6 +278,13 @@ export class GameScene extends Phaser.Scene {
             backgroundColor: "#000000",
             padding: { x: 8, y: 4 }
         }).setScrollFactor(0);
+
+        this.livesText = this.add.text(16, 50, "❤️ ❤️ ❤️", {
+            fontSize: "18px",
+            backgroundColor: "#000000",
+            padding: { x: 8, y: 4 }
+        }).setScrollFactor(0);
+
 
 
 // laver player walk animation
@@ -203,17 +301,53 @@ export class GameScene extends Phaser.Scene {
         });
     }
 
+    private bonkEnemy(): void {
+        if (this.isInvincible) return;
+
+        this.lives--;
+
+        // Math.max sikrer at lives aldrig går under 0
+        // Uden dette får String.repeat() en negativ værdi og crasher
+        this.lives = Math.max(0, this.lives);
+
+        this.livesText.setText("❤️ ".repeat(this.lives).trim());
+
+        // Usårbarhedsperiode
+        this.isInvincible = true;
+        this.player.setAlpha(0.5);
+
+        this.time.delayedCall(1500, () => {
+            this.isInvincible = false;
+            this.player.setAlpha(1);
+        });
+
+        if (this.lives <= 0) {
+            this.isInvincible = false; // nulstil inden scene skifter
+            this.scene.start("GameOverScene", { score: this.score });
+        }
+
+    }
+
+
     update(): void {
         const speed = 240; // pixels per sekund — prøv at ændre dette
 
         // Nulstil hastighed hver frame
         this.player.setVelocity(0);
+        //this.skeleton.setVelocity(0);
 
         // Bevæg spilleren efter hvilke taster der holdes nede
         if (this.cursors.left.isDown)  this.player.setVelocityX(-speed) && this.player.setFlipX(true);
         if (this.cursors.right.isDown) this.player.setVelocityX(speed) && this.player.setFlipX(false);
         if (this.cursors.up.isDown)    this.player.setVelocityY(-speed);
         if (this.cursors.down.isDown)  this.player.setVelocityY(speed);
+
+       /* if (this.skeleton.setVelocityX(-speed)) this.skeleton.anims.play("walk-left", true);
+        else if (this.skeleton.setVelocityX(speed)) this.skeleton.anims.play("walk-right", true);
+        else if (this.skeleton.setVelocityY(-speed)) this.skeleton.anims.play("walk-up", true);
+        else if (this.skeleton.setVelocityY(speed)) this.skeleton.anims.play("walk-down", true);
+        else (this.skeleton.anims.play("idle", true));*/
+
 
         // Normaliser hastigheden ved diagonal bevægelse
         const vx = (this.cursors.left.isDown ? -1 : 0) + (this.cursors.right.isDown ? 1 : 0);
@@ -222,6 +356,20 @@ export class GameScene extends Phaser.Scene {
 
         this.player.setVelocityX((vx / len) * speed);
         this.player.setVelocityY((vy / len) * speed);
+        /*this.skeleton.setVelocityX((vx / len) * speed);
+        this.skeleton.setVelocityY((vy / len) * speed);*/
+
+        console.log(this.skeleton.x);
+        // ─── Fjende patruljering ──────────────────────────────────────
+        if (this.skeleton.x >= this.patrolRight) {
+            this.skeleton.setVelocityX(-this.patrolSpeed); // vend til venstre
+            this.skeleton.anims.play("walk-left", true)
+        }
+        if (this.skeleton.x <= this.patrolLeft) {
+            this.skeleton.setVelocityX(this.patrolSpeed);  // vend til højre
+            this.skeleton.anims.play("walk-right", true);
+        }
+
     }
 
 }
