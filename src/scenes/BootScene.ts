@@ -17,6 +17,12 @@ export class BootScene extends Phaser.Scene {
             spacing: 0,       // ← 0 hvis der ikke er mellemrum
             margin: 0
         });
+        // ─── Lyde ────────────────────────────────────────────────────
+        this.load.audio("potion",  "assets/audio/potion.mp3");
+        this.load.audio("hurt",  "assets/audio/hurt.mp3");
+        this.load.audio("music", "assets/audio/music.mp3");
+        this.load.audio("win", "assets/audio/victory.mp3");
+
     }
 
     create(): void {

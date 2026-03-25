@@ -15,7 +15,9 @@ export class GameScene extends Phaser.Scene {
     private SKELETON_FRAME = 143;   // ← ret til dit frame-nummer
     private lives: number = 3;                          // ← tilføj
     private livesText!: Phaser.GameObjects.Text;        // ← tilføj
-
+    private coinSound!: Phaser.Sound.BaseSound;   // ← tilføj
+    private hurtSound!: Phaser.Sound.BaseSound;   // ← tilføj
+    private music!: Phaser.Sound.BaseSound;       // ← tilføj
 
 
     constructor() {
@@ -207,6 +209,15 @@ export class GameScene extends Phaser.Scene {
             .setBounds(0, 0, mapWidth, mapHeight)
             .startFollow(this.player);
 
+        // ─── Lyd ─────────────────────────────────────────────────────
+        this.coinSound = this.sound.add("potion",  { volume: 0.5 });
+        this.hurtSound = this.sound.add("hurt",  { volume: 0.6 });
+        this.music     = this.sound.add("music", { volume: 0.2, loop: true });
+
+// Start baggrundsmusik
+        this.music.play();
+
+
 // ─── Input ───────────────────────────────────────────────────
         this.cursors = this.input.keyboard!.createCursorKeys();
 
@@ -241,25 +252,27 @@ export class GameScene extends Phaser.Scene {
             this.player,
             this.items,
             (_player, item) => {
-                // Fjern itemet fra verden
-                (item as Phaser.Physics.Arcade.Sprite).destroy();
-
                 // Øg score
                 // I overlap-funktionen:
                 const points = (item as Phaser.Physics.Arcade.Sprite).getData("points");
                 this.score += points;
                 // I overlap-funktionen:
                 this.scoreText.setText(
-                    "Score: " + this.score + "  |  Items tilbage: " + this.items.countActive()
+                    "Score: " + this.score // + "  |  Items tilbage: " + this.items.countActive()
                 );
+                this.coinSound.play(); // ← tilføj denne linje
+                // Fjern itemet fra verden
+                (item as Phaser.Physics.Arcade.Sprite).destroy();
 
                 // I create() — efter items er placeret:
-                this.scoreText.setText(
+                /*this.scoreText.setText(
                     "Score: 0  |  Items tilbage: " + this.items.countActive()
-                );
+                );*/
 
                 // Tjek om alle items er samlet op - Win condition
                 if (this.items.countActive() === 0) {
+                    this.music.stop();
+                    this.sound.play("win");
                     this.add.text(
                         this.cameras.main.centerX,
                         this.cameras.main.centerY,
@@ -303,6 +316,7 @@ export class GameScene extends Phaser.Scene {
 
     private bonkEnemy(): void {
         if (this.isInvincible) return;
+        this.hurtSound.play(); // ← tilføj denne linje
 
         this.lives--;
 
@@ -327,6 +341,13 @@ export class GameScene extends Phaser.Scene {
         }
 
     }
+    shutdown(): void {
+        // Stoppes automatisk når scenen lukkes
+        if (this.music) {
+            this.music.stop();
+        }
+    }
+
 
 
     update(): void {
@@ -369,7 +390,5 @@ export class GameScene extends Phaser.Scene {
             this.skeleton.setVelocityX(this.patrolSpeed);  // vend til højre
             this.skeleton.anims.play("walk-right", true);
         }
-
     }
-
 }
