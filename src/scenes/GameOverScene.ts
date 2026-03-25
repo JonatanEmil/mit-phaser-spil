@@ -6,7 +6,7 @@ export class GameOverScene extends Phaser.Scene {
     }
 
     init(data: { score: number }): void {
-        // Modtag score fra GameScene
+        // Modtag score fra Room1Scene
         // ?? 0 sikrer at vi får 0 hvis data er undefined
         this.finalScore = data.score ?? 0;
     }
@@ -32,7 +32,7 @@ export class GameOverScene extends Phaser.Scene {
         }).setOrigin(0.5);
 
         this.input.keyboard!.once("keydown-ENTER", () => {
-            this.scene.start("GameScene");
+            this.scene.start("Room1Scene");
         });
     }
 }

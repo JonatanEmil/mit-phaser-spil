@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 
-export class GameScene extends Phaser.Scene {
+export class Room1Scene extends Phaser.Scene {
     private walls!: Phaser.Physics.Arcade.StaticGroup;
     private player!: Phaser.Physics.Arcade.Sprite;  // ← tilføj denne
     private skeleton!: Phaser.Physics.Arcade.Sprite;
@@ -21,7 +21,7 @@ export class GameScene extends Phaser.Scene {
 
 
     constructor() {
-        super({ key: "GameScene" });
+        super({ key: "Room1Scene" });
     }
 
     private spawnEnemy = (x: number, y: number, speed: number) => {
@@ -38,6 +38,8 @@ export class GameScene extends Phaser.Scene {
         this.isInvincible = false;
         this.lives = 3;
         this.score = 0;
+        // Øverst i create()
+        const doors = this.physics.add.staticGroup();
 
         // ─── Kortets layout ──────────────────────────────────────────
         // Bogstaver bestemmer hvilken tile der tegnes hvor:
@@ -47,7 +49,7 @@ export class GameScene extends Phaser.Scene {
 
         const map = [
             "RWWWWWWWWWWSRWWWWS",
-            "OJJJJJJJJCJQOJJJJQ",
+            "OJJJJJJJCJJQOJJJJQ",
             "O..........QO....Q",
             "O..........QO....Q",
             "O..........QO....Q",
@@ -111,8 +113,14 @@ export class GameScene extends Phaser.Scene {
                 else if (cell === "V") wallFrame = LOWER_WALL_FRAME;
                 else if (cell === "O") wallFrame = LEFT_WALL_FRAME;
                 else if (cell === "Q") wallFrame = RIGHT_WALL_FRAME;
-                else if (cell === "C") wallFrame = DOOR_CLOSED_FRAME;
-                else if (cell === "O") wallFrame = DOOR_OPEN_FRAME;
+                else if (cell === "C") {
+                    this.add.image(x, y, "tilemap", FLOOR_FRAME).setScale(SCALE);
+                    const door = this.physics.add.staticSprite(x, y, "tilemap", DOOR_CLOSED_FRAME);
+                    door.refreshBody();
+                    door.setBodySize(32, 33);
+                    doors.add(door); // ← tilføj til gruppen
+                }
+                else if (cell === "P") wallFrame = DOOR_OPEN_FRAME;
 
                 if (wallFrame !== null) {
                     const wall = this.physics.add.staticSprite(x, y, "tilemap", wallFrame);
@@ -174,6 +182,15 @@ export class GameScene extends Phaser.Scene {
 // Forhindrer spilleren i at gå through vægge
         this.physics.add.collider(this.player, this.walls);
 
+        // Efter forEach:
+        this.physics.add.overlap(
+            this.player,
+            doors,
+            () => {
+                this.scene.start("Room2Scene", { score: this.score });
+            }
+        );
+
         // Vigtigt: spawnes sidst så spilleren tegnes øverst
         const SKELETON_START_X = 12; // ← hvilken kolonne (tæl fra 0)
         const SKELETON_START_Y = 6; // ← hvilken række (tæl fra 0)
@@ -182,7 +199,6 @@ export class GameScene extends Phaser.Scene {
         const skely = SKELETON_START_Y * TILE * SCALE + (TILE * SCALE) / 2;
 
         this.skeleton = this.spawnEnemy(skelex, skely, 80);
-        this.skeleton = this.spawnEnemy(skelex, skely + 2, 80);
 
         this.skeleton.setScale(0.6 );
         // Start patruljering til venstre

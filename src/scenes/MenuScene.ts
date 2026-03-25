@@ -32,7 +32,7 @@ export class MenuScene extends Phaser.Scene {
         });
 
         this.input.keyboard!.once("keydown-ENTER", () => {
-            this.scene.start("GameScene");
+            this.scene.start("Room1Scene");
         });
     }
 }

@@ -1,7 +1,8 @@
 import Phaser from "phaser";
 import { BootScene } from "@scenes/BootScene";
 import { MenuScene } from "@scenes/MenuScene";
-import { GameScene } from "@scenes/GameScene";
+import { Room1Scene } from "@scenes/Room1Scene";
+import { Room2Scene } from "@scenes/Room2Scene";
 import { GameOverScene } from "@scenes/GameOverScene";
 
 export const gameConfig: Phaser.Types.Core.GameConfig = {
@@ -12,10 +13,10 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     physics: {
         default: "arcade",
         arcade: {
-            debug: false,            // Sæt til true for at se hitboxes
+            debug: true,            // Sæt til true for at se hitboxes
         },
     },
-    scene: [BootScene, MenuScene, GameScene, GameOverScene],
+    scene: [BootScene, MenuScene, Room1Scene, Room2Scene, GameOverScene],
     scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
